@@ -1,0 +1,65 @@
+name: CI/CD to GKE
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.GAR_REPO }}/node-hostname
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: "deploy-main"
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Google Cloud (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      - name: Configure Docker to use Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev -q
+
+      - name: Build and push image
+        run: |
+          TAG=${GITHUB_SHA::7}
+          docker build -t "${IMAGE}:${TAG}" -t "${IMAGE}:dev" ./node-hostname
+          docker push "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:dev"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ vars.GKE_CLUSTER }}
+          location: ${{ vars.GKE_LOCATION }}
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install node-hostname ./helm/node-hostname \
+            -n production --create-namespace \
+            --set image.repository="${IMAGE}" \
+            --set image.tag="dev" \
+            --set ingress.className="nginx" \
+            --set ingress.host="${{ vars.HOST }}" \
+            --set ingress.tls.enabled=true \
+            --set ingress.tls.secretName="node-hostname-tls" \
+            --set ingress.tls.issuerName="letsencrypt-prod" \
+            --wait --timeout 10m
