@@ -1,28 +1,18 @@
-# Node app (subfolder)
+/*
+!.gitignore
+!/helm/
+!/node-hostname/
+!/clusterissuer.yaml
+!/README.md
+
+# noise
 node-hostname/node_modules/
-node-hostname/npm-debug.log*
-node-hostname/package-lock.json#*   # lockfile temp files
-node-hostname/.env
-
-# Logs
-*.log
-*.out
-*.tmp
-
-# Docker / local
-**/.env
-**/.DS_Store
-**/*.swp
-*.tar
-
-# IDEs
+*.tgz
 .vscode/
 .idea/
-
-# Helm / K8s artifacts
-helm/**/charts/
-helm/**/tmp/
-*.tgz
-
-# Git
-.git/
+.kube/
+.config/
+.cache/
+.docker/
+.npm/
+.gemini/

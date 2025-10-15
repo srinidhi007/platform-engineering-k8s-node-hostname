@@ -1,0 +1,11 @@
+# Ignore when packaging the chart
+.git/
+.gitignore
+*.swp
+*.bak
+.DS_Store
+.vscode/
+*.tgz
+charts/
+tmp/
+

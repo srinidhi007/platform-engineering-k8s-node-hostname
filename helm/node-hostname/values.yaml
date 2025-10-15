@@ -1,0 +1,58 @@
+replicaCount: 2
+
+image:
+  repository: europe-north1-docker.pkg.dev/platform-k8s-1234/node-hostname/node-hostname
+  tag: "0.0.1"
+  pullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: artifact-regcred
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+container:
+  port: 3000
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  host: app.34.88.119.206.nip.io
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+    secretName: node-hostname-tls
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 2
+    periodSeconds: 5
+
+podAnnotations: {}
+labels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
