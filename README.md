@@ -1,6 +1,7 @@
 # Node Hostname — Kubernetes + Helm (HTTPS-ready)
 
 A tiny Express app that returns the pod’s hostname and app version. It ships with a production-grade Docker image (distroless, non-root), a Helm chart, health probes, and Let’s Encrypt TLS via cert-manager.
+To visit Project go to: https://app.34.88.119.206.nip.io/
 
 ---
 
