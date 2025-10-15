@@ -174,6 +174,93 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 ```
+---
+
+## 1. Install Ingress-Nginx
+
+Add the official Ingress-Nginx Helm repository and update your local chart cache.
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+```
+Install the controller into a dedicated namespace.
+
+```bash
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  -n ingress-nginx --create-namespace
+```
+**Verify the LoadBalancer IP:**
+
+Check the status of the service to retrieve the external IP or hostname for your ingress point.
+
+```bash
+kubectl -n ingress-nginx get svc ingress-nginx-controller
+```
+## 2. Install Cert-Manager (Autopilot-Safe)
+
+Add the Jetstack Helm repository for Cert-Manager.
+
+```bash
+helm repo add jetstack [https://charts.jetstack.io](https://charts.jetstack.io)
+helm repo update
+```
+```bash
+helm upgrade --install cert-manager jetstack/cert-manager \
+  -n cert-manager --create-namespace \
+  --set installCRDs=true \
+  --set leaderElection.namespace=cert-manager
+```
+## 3. Create the Let’s Encrypt ClusterIssuer
+
+This resource tells **Cert-Manager** how to interact with the **Let's Encrypt ACME server** to issue certificates.
+
+**`clusterissuer.yaml`:**
+```bash
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: chintham.srinidhi@gmail.com # 📧 IMPORTANT: Update this email
+    server: [https://acme-v02.api.letsencrypt.org/directory](https://acme-v02.api.letsencrypt.org/directory)
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+```
+#### Apply the Configuration:
+```bash
+kubectl apply -f clusterissuer.yaml
+```
+**Check Status:**
+
+```bash
+kubectl describe clusterissuer letsencrypt-prod
+```
+#### Deploy the App with Helm (TLS + Redirect Enabled)
+Ensure your application's Ingress configuration within its Helm values.yaml is set up to request a certificate and enforce HTTPS.
+
+Example values.yaml Ingress configuration:
+```bash
+ingress:
+  className: nginx
+  annotations:
+    # Associate the Ingress with the ClusterIssuer
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Enable standard SSL redirect from HTTP to HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Enforce SSL redirect unconditionally
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  tls:
+    enabled: true
+    # Secret where the final certificate will be stored
+    secretName: node-hostname-tls
+
+```
 
 ---
 
@@ -203,6 +290,7 @@ curl -I https://$HOST/healthz
 curl -I https://$HOST/readyz
 
 # Service endpoints should be populated
+
 kubectl get endpoints $APP
 ```
 
